@@ -55,43 +55,6 @@ def translate_text(text, target_language):
     if language_code is None:
         return text
 
-    if argos_translate is None:
-        return "Translation is unavailable because Argos Translate is not installed."
-
-    try:
-        installed_targets = {
-            translation.to_lang.code
-            for language in argos_translate.get_installed_languages()
-            for translation in language.translations_from
-            if translation.from_lang.code == "en"
-        }
-        if language_code not in installed_targets:
-            if argos_package is None:
-                return "Translation models are unavailable because Argos Translate is not installed."
-            if language_code not in INSTALLED_TRANSLATION_MODELS:
-                argos_package.update_package_index()
-                installed = argos_package.install_package_for_language_pair(
-                    "en",
-                    language_code,
-                )
-                if not installed:
-                    return f"The {language_code} translation model could not be installed."
-                INSTALLED_TRANSLATION_MODELS.add(language_code)
-                installed_targets = {
-                    translation.to_lang.code
-                    for language in argos_translate.get_installed_languages()
-                    for translation in language.translations_from
-                    if translation.from_lang.code == "en"
-                }
-            if language_code not in installed_targets:
-                return f"The {language_code} translation model is not available yet."
-
-        translated = argos_translate.translate(text, "en", language_code)
-        if translated and translated.strip():
-            return translated
-    except Exception:
-        pass
-
     fallback_translations = {
         "fr": {
             "hello": "Bonjour",
@@ -134,6 +97,41 @@ def translate_text(text, target_language):
     lookup = text.strip().lower()
     if lookup in fallback_translations.get(language_code, {}):
         return fallback_translations[language_code][lookup]
+
+    if argos_translate is not None:
+        try:
+            installed_targets = {
+                translation.to_lang.code
+                for language in argos_translate.get_installed_languages()
+                for translation in language.translations_from
+                if translation.from_lang.code == "en"
+            }
+            if language_code not in installed_targets:
+                if argos_package is None:
+                    return f"Translation for '{text}' is unavailable right now. Try a simple word or phrase."
+                if language_code not in INSTALLED_TRANSLATION_MODELS:
+                    argos_package.update_package_index()
+                    installed = argos_package.install_package_for_language_pair(
+                        "en",
+                        language_code,
+                    )
+                    if not installed:
+                        return f"Translation for '{text}' is unavailable right now. Try a simple word or phrase."
+                    INSTALLED_TRANSLATION_MODELS.add(language_code)
+                    installed_targets = {
+                        translation.to_lang.code
+                        for language in argos_translate.get_installed_languages()
+                        for translation in language.translations_from
+                        if translation.from_lang.code == "en"
+                    }
+                if language_code not in installed_targets:
+                    return f"Translation for '{text}' is unavailable right now. Try a simple word or phrase."
+
+            translated = argos_translate.translate(text, "en", language_code)
+            if translated and translated.strip():
+                return translated
+        except Exception:
+            pass
 
     return f"Translation for '{text}' is unavailable right now. Try a simple word or phrase."
 
